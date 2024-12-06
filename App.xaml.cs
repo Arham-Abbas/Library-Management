@@ -1,23 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Identity.Client;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace Library_Management
 {
@@ -26,13 +11,39 @@ namespace Library_Management
     /// </summary>
     public partial class App : Application
     {
+        private static readonly IConfiguration Configuration;
+        private static readonly string clientId;
+        private static readonly string tenantId;
+        private static readonly string authority;
+
+        public static IPublicClientApplication? PublicClientApp { get; private set; }
+
+        static App()
+        {
+            var appLocation = AppContext.BaseDirectory; // Ensure the base path is set correctly
+
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(appLocation)
+                .AddJsonFile("secrets.json", optional: false, reloadOnChange: true);
+
+            Configuration = builder.Build();
+
+            clientId = Configuration["AzureAd:ClientId"] ?? throw new ArgumentNullException(nameof(clientId));
+            tenantId = Configuration["AzureAd:TenantId"] ?? throw new ArgumentNullException(nameof(tenantId));
+            authority = $"https://login.microsoftonline.com/{tenantId}";
+        }
+
         /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
+        /// Initializes the singleton application object. This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
         /// </summary>
         public App()
         {
             this.InitializeComponent();
+            PublicClientApp = PublicClientApplicationBuilder.Create(clientId)
+                               .WithAuthority(authority)
+                               .WithDefaultRedirectUri()
+                               .Build();
         }
 
         /// <summary>

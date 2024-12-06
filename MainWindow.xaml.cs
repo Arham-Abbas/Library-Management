@@ -1,36 +1,72 @@
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
+using Microsoft.Identity.Client;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using System.Diagnostics;
 
 namespace Library_Management
 {
-    /// <summary>
-    /// An empty window that can be used on its own or navigated to within a Frame.
-    /// </summary>
     public sealed partial class MainWindow : Window
     {
+        private readonly string[] scopes = new string[] { "User.Read" };
+
         public MainWindow()
         {
             this.InitializeComponent();
         }
 
-        private void myButton_Click(object sender, RoutedEventArgs e)
+        private async void MyButton_Click(object sender, RoutedEventArgs e)
         {
-            myButton.Content = "Clicked";
+            await SignInUserAsync();
+        }
+
+        private async Task SignInUserAsync()
+        {
+            if (App.PublicClientApp == null)
+            {
+                Debug.WriteLine("Initialization error: PublicClientApp is null.");
+                return;
+            }
+
+            var accounts = await App.PublicClientApp.GetAccountsAsync();
+            AuthenticationResult result;
+
+            try
+            {
+                if (accounts.Any())
+                {
+                    result = await App.PublicClientApp.AcquireTokenSilent(scopes, accounts.FirstOrDefault())
+                                                     .ExecuteAsync();
+                }
+                else
+                {
+                    result = await App.PublicClientApp.AcquireTokenInteractive(scopes)
+                                                     .ExecuteAsync();
+                }
+
+                myButton.Content = "Authenticated";
+                var accessToken = result.AccessToken;
+            }
+            catch (MsalUiRequiredException)
+            {
+                try
+                {
+                    result = await App.PublicClientApp.AcquireTokenInteractive(scopes)
+                                                     .ExecuteAsync();
+                    myButton.Content = "Authenticated";
+                    var accessToken = result.AccessToken;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error during interactive login: {ex.Message}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error acquiring token silently: {ex.Message}");
+            }
         }
     }
 }
